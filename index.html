@@ -233,7 +233,12 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
 .paper p.sign{font-family:var(--f-display);font-size:1.45rem;color:var(--rose-deep);text-align:end;margin-top:1rem}
 
 /* ---------- finale ---------- */
-#s-finale{justify-content:center;gap:1.1rem}
+#s-finale{justify-content:safe center;gap:1.1rem;overflow-y:auto}
+.song{display:grid;gap:.5rem;justify-items:center;width:min(100%, 22rem)}
+.song small{font-size:.85rem;color:var(--gold)}
+.song .frame{width:100%;aspect-ratio:16/9;max-width:100%;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--glass);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.song iframe{width:100%;height:100%;border:0;display:block}
+.song a{font-size:.8rem;color:var(--muted)}
 .big-name{font-family:var(--f-display);font-size:clamp(4rem, 22vw, 7rem);line-height:1.1;color:var(--gold-soft);
   text-shadow:0 0 30px var(--gold), 0 0 80px color-mix(in srgb, var(--rose) 80%, transparent);margin:0}
 .row{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center}
@@ -370,6 +375,11 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
     <h2>عيد ميلاد سعيد</h2>
     <p class="big-name">يا ليلى</p>
     <p class="lead">ستٌّ وعشرون سنة من النور…<br>والقادم أجمل بكثير.</p>
+    <div class="song ia">
+      <small>أغنية لكِ: الليل يا ليلى</small>
+      <div class="frame"><iframe id="songFrame" title="الليل يا ليلى" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+      <a id="songLink" href="#" target="_blank" rel="noopener">افتحيها على يوتيوب</a>
+    </div>
     <p class="hint">المسي السماء لتُطلقي الألعاب النارية</p>
     <div class="row">
       <a class="btn ia" id="replyBtn" href="#" target="_blank" rel="noopener">أرسلي ردّكِ لمحمد</a>
@@ -393,6 +403,8 @@ const CFG = {
   // رقم واتساب بالصيغة الدولية (الأردن 962) — زر الرد في الشاشة الأخيرة يفتح محادثة معه مباشرة
   phone: '962785377037',
   snap: 'mbsd999',
+  // أغنية الشاشة الأخيرة (معرّف فيديو يوتيوب)
+  song: 'v87o7i4-M-w',
   // رسالة الرد التي تُفتح في واتساب من الشاشة الأخيرة
   reply: 'محمد، وصلتني هديتك…أضأتُ النجوم وأطفأتُ الشموع وقرأت الرسالة 🤍',
   whispers: {
@@ -1170,11 +1182,17 @@ scenes.finale = (() => {
   let timer = 0;
   $('#replyBtn').href = `https://wa.me/${CFG.phone}?text=` + encodeURIComponent(CFG.reply);
   $('#snapBtn').href = `https://www.snapchat.com/add/${CFG.snap}`;
+  const frame = $('#songFrame');
+  $('#songLink').href = `https://www.youtube.com/watch?v=${CFG.song}`;
   $('#replayBtn').addEventListener('click', () => go('sky'));
   return {
     enter() {
       bgTarget = 1.2; timer = .3; Sound.sparkle(); confetti(80);
+      // the song takes over from the music box
+      Sound.duck(0);
+      if (!frame.src) frame.src = `https://www.youtube.com/embed/${CFG.song}?playsinline=1&rel=0`;
     },
+    leave() { frame.removeAttribute('src'); Sound.duck(1); },
     down(p) { launch(p.x, p.y); },
     draw(t, dt) {
       timer -= dt;
