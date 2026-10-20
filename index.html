@@ -373,6 +373,7 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
     <p class="hint">المسي السماء لتُطلقي الألعاب النارية</p>
     <div class="row">
       <a class="btn ia" id="replyBtn" href="#" target="_blank" rel="noopener">أرسلي ردّكِ لمحمد</a>
+      <a class="btn ghost ia" id="snapBtn" href="#" target="_blank" rel="noopener">سناب محمد</a>
       <button class="btn ghost ia" id="replayBtn" type="button">أعيدي الرحلة</button>
     </div>
   </section>
@@ -391,6 +392,7 @@ const CFG = {
   from: 'حبيبك محمد',
   // رقم واتساب بالصيغة الدولية (الأردن 962) — زر الرد في الشاشة الأخيرة يفتح محادثة معه مباشرة
   phone: '962785377037',
+  snap: 'mbsd999',
   // رسالة الرد التي تُفتح في واتساب من الشاشة الأخيرة
   reply: 'محمد، وصلتني هديتك…أضأتُ النجوم وأطفأتُ الشموع وقرأت الرسالة 🤍',
   whispers: {
@@ -1167,6 +1169,7 @@ scenes.letter = (() => {
 scenes.finale = (() => {
   let timer = 0;
   $('#replyBtn').href = `https://wa.me/${CFG.phone}?text=` + encodeURIComponent(CFG.reply);
+  $('#snapBtn').href = `https://www.snapchat.com/add/${CFG.snap}`;
   $('#replayBtn').addEventListener('click', () => go('sky'));
   return {
     enter() {
