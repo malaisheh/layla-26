@@ -260,7 +260,7 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
   <!-- مقدمة: الظرف -->
   <section class="scene active" id="s-intro" aria-label="البداية">
     <div class="head">
-      <span class="eyebrow">رسالة خاصة، لا تُفتح إلا الليلة</span>
+      <span class="eyebrow">من محمد · رسالة خاصة، لا تُفتح إلا الليلة</span>
       <h1>إلى ليلى</h1>
     </div>
     <div class="envelope" id="envelope" aria-hidden="true">
@@ -372,7 +372,7 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
     <p class="lead">ستٌّ وعشرون سنة من النور…<br>والقادم أجمل بكثير.</p>
     <p class="hint">المسي السماء لتُطلقي الألعاب النارية</p>
     <div class="row">
-      <a class="btn ia" id="replyBtn" href="#" target="_blank" rel="noopener">أرسلي ردّكِ</a>
+      <a class="btn ia" id="replyBtn" href="#" target="_blank" rel="noopener">أرسلي ردّكِ لمحمد</a>
       <button class="btn ghost ia" id="replayBtn" type="button">أعيدي الرحلة</button>
     </div>
   </section>
@@ -388,9 +388,11 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
 const CFG = {
   name: 'ليلى',
   age: 26,
-  from: 'حبيبك',
+  from: 'حبيبك محمد',
+  // رقم واتساب بالصيغة الدولية (الأردن 962) — زر الرد في الشاشة الأخيرة يفتح محادثة معه مباشرة
+  phone: '962785377037',
   // رسالة الرد التي تُفتح في واتساب من الشاشة الأخيرة
-  reply: 'وصلتني هديتك… أضأتُ النجوم وأطفأتُ الشموع وقرأت الرسالة 🤍',
+  reply: 'محمد، وصلتني هديتك…أضأتُ النجوم وأطفأتُ الشموع وقرأت الرسالة 🤍',
   whispers: {
     5:  'نجمة لكل سنة… وأنتِ أجمل ما في كل سنة.',
     10: 'بعض الناس يمرّون بالحياة، وأنتِ تُضيئينها.',
@@ -1164,7 +1166,7 @@ scenes.letter = (() => {
    ========================================================= */
 scenes.finale = (() => {
   let timer = 0;
-  $('#replyBtn').href = 'https://wa.me/?text=' + encodeURIComponent(CFG.reply);
+  $('#replyBtn').href = `https://wa.me/${CFG.phone}?text=` + encodeURIComponent(CFG.reply);
   $('#replayBtn').addEventListener('click', () => go('sky'));
   return {
     enter() {
