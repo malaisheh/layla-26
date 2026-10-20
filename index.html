@@ -234,11 +234,12 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
 
 /* ---------- finale ---------- */
 #s-finale{justify-content:safe center;gap:1.1rem;overflow-y:auto}
-.song{display:grid;gap:.5rem;justify-items:center;width:min(100%, 22rem)}
-.song small{font-size:.85rem;color:var(--gold)}
-.song .frame{width:100%;aspect-ratio:16/9;max-width:100%;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--glass);box-shadow:0 12px 40px rgba(0,0,0,.4)}
-.song iframe{width:100%;height:100%;border:0;display:block}
-.song a{font-size:.8rem;color:var(--muted)}
+.nowplaying{display:inline-flex;align-items:center;gap:.6rem;font-size:.88rem;color:var(--gold-soft);background:var(--glass);border:1px solid var(--line);padding:.4rem 1rem;border-radius:999px}
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.eq i{width:3px;height:100%;background:var(--gold);border-radius:2px;animation:eq 1s ease-in-out infinite;transform-origin:bottom}
+.eq i:nth-child(2){animation-delay:-.4s}
+.eq i:nth-child(3){animation-delay:-.7s}
+@keyframes eq{50%{transform:scaleY(.3)}}
 .big-name{font-family:var(--f-display);font-size:clamp(4rem, 22vw, 7rem);line-height:1.1;color:var(--gold-soft);
   text-shadow:0 0 30px var(--gold), 0 0 80px color-mix(in srgb, var(--rose) 80%, transparent);margin:0}
 .row{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center}
@@ -249,6 +250,7 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
 }
 </style>
 
+<audio id="song" preload="auto" playsinline></audio>
 <canvas id="bg" aria-hidden="true"></canvas>
 <canvas id="play" aria-hidden="true"></canvas>
 <canvas id="fx" aria-hidden="true"></canvas>
@@ -375,11 +377,7 @@ h2{font-size:clamp(1.9rem, 7.6vw, 2.6rem)}
     <h2>عيد ميلاد سعيد</h2>
     <p class="big-name">يا ليلى</p>
     <p class="lead">ستٌّ وعشرون سنة من النور…<br>والقادم أجمل بكثير.</p>
-    <div class="song ia">
-      <small>أغنية لكِ: الليل يا ليلى</small>
-      <div class="frame"><iframe id="songFrame" title="الليل يا ليلى" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
-      <a id="songLink" href="#" target="_blank" rel="noopener">افتحيها على يوتيوب</a>
-    </div>
+    <div class="nowplaying"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>الليل يا ليلى · وديع الصافي</div>
     <p class="hint">المسي السماء لتُطلقي الألعاب النارية</p>
     <div class="row">
       <a class="btn ia" id="replyBtn" href="#" target="_blank" rel="noopener">أرسلي ردّكِ لمحمد</a>
@@ -403,8 +401,10 @@ const CFG = {
   // رقم واتساب بالصيغة الدولية (الأردن 962) — زر الرد في الشاشة الأخيرة يفتح محادثة معه مباشرة
   phone: '962785377037',
   snap: 'mbsd999',
-  // أغنية الشاشة الأخيرة (معرّف فيديو يوتيوب)
-  song: 'v87o7i4-M-w',
+  // الأغنية في الخلفية: song.m4a بجانب الصفحة.
+  // المقدمة الموسيقية تتكرر بين introLoop و introEnd حتى يكتمل القلب،
+  // ثم تقفز إلى cue فيبدأ الغناء (الثانية 39) لحظة ظهور اسمها.
+  song: { src: 'song.m4a', introEnd: 35.6, introLoop: 6, cue: 37.4, vocal: 39, level: .8 },
   // رسالة الرد التي تُفتح في واتساب من الشاشة الأخيرة
   reply: 'محمد، وصلتني هديتك…أضأتُ النجوم وأطفأتُ الشموع وقرأت الرسالة 🤍',
   whispers: {
@@ -497,6 +497,30 @@ const GOLD = 'rgba(243,197,107,A)', ROSE = 'rgba(239,143,168,A)', CREAM = 'rgba(
 /* ---------- audio (all synthesized, no files) ---------- */
 const Sound = (() => {
   let ctx = null, master, bus, music, noiseBuf, muted = false, arp = false, nextT = 0, step = 0;
+  // background song
+  const S = CFG.song, songEl = document.getElementById('song');
+  let songG = null, songOn = false, songMode = 'intro', duckV = 1, seeking = false;
+  songEl.src = S.src;
+  songEl.addEventListener('ended', () => { songEl.currentTime = S.cue; songEl.play().catch(() => {}); });
+  songEl.addEventListener('error', () => { if (!songOn) fallback(); });
+  const songLevel = () => S.level * duckV;
+  function setSong(v, tc = .5) {
+    if (songG) songG.gain.setTargetAtTime(v, ctx.currentTime, tc);
+    else songEl.volume = Math.max(0, Math.min(1, v));
+  }
+  function jump(to) {
+    if (seeking) return; seeking = true;
+    setSong(0, .12);
+    setTimeout(() => { songEl.currentTime = to; setSong(songLevel(), .35); seeking = false; }, 450);
+  }
+  function watch() {
+    if (songOn && !seeking && songMode === 'intro' && songEl.currentTime >= S.introEnd) jump(S.introLoop);
+  }
+  // music box only if the song cannot play
+  function fallback() { if (ctx && !arp) { arp = true; nextT = ctx.currentTime + .15; } }
+  function songStart() {
+    songEl.play().then(() => { songOn = true; setSong(songLevel(), 1.2); }).catch(fallback);
+  }
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   const CH = [[72,76,79,83,84,83,79,76],[69,72,76,79,81,79,76,72],[65,69,72,76,77,76,72,69],[67,71,74,79,83,79,74,71]];
   const BASS = [48, 45, 41, 43], STEP = .34;
@@ -515,8 +539,16 @@ const Sound = (() => {
     music = ctx.createGain(); music.gain.value = 1; music.connect(bus);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    try {
+      songG = ctx.createGain(); songG.gain.value = 0;
+      ctx.createMediaElementSource(songEl).connect(songG); songG.connect(master);
+    } catch (_) { songG = null; songEl.volume = 0; }
     setInterval(tick, 90);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) ctx.suspend(); else ctx.resume(); });
+    setInterval(watch, 100);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { ctx.suspend(); songEl.pause(); }
+      else { ctx.resume(); if (songOn) songEl.play().catch(() => {}); }
+    });
     return true;
   }
   function bell(f, t, vol = .05, dur = 1.7, dest = bus) {
@@ -552,9 +584,20 @@ const Sound = (() => {
   }
   const ok = () => ctx && ctx.state !== 'closed';
   return {
-    start() { if (!init()) return; ctx.resume(); if (!arp) { arp = true; nextT = ctx.currentTime + .15; } },
-    toggle() { muted = !muted; if (ctx) master.gain.setTargetAtTime(muted ? 0 : .9, ctx.currentTime, .1); return muted; },
-    duck(v) { if (ok()) music.gain.setTargetAtTime(v, ctx.currentTime, .5); },
+    start() {
+      if (!init()) { songEl.volume = S.level; songEl.play().then(() => { songOn = true; }).catch(() => {}); return; }
+      ctx.resume(); songStart();
+    },
+    toggle() {
+      muted = !muted;
+      if (ctx) master.gain.setTargetAtTime(muted ? 0 : .9, ctx.currentTime, .1);
+      if (!songG) songEl.muted = muted;
+      return muted;
+    },
+    duck(v) { duckV = v; if (ok()) music.gain.setTargetAtTime(v, ctx.currentTime, .5); if (songOn && !seeking) setSong(songLevel(), .5); },
+    // her name appears: skip the intro so the singing starts with it
+    cue() { songMode = 'song'; if (songOn && songEl.currentTime < S.vocal - 1.2) jump(S.cue); },
+    rewind() { songMode = 'intro'; if (songOn && songEl.currentTime > S.introEnd) jump(S.introLoop); },
     chime(i) {
       if (!ok()) return; const pent = [0, 2, 4, 7, 9];
       const m = 72 + pent[i % 5] + 12 * (Math.floor(i / 5) % 2), t = ctx.currentTime;
@@ -576,10 +619,15 @@ const Sound = (() => {
       const G = 67, A = 69, B = 71, C = 72, D = 74, E = 76, F = 77, G5 = 79;
       const song = [[G,.75],[G,.25],[A,1],[G,1],[C,1],[B,2],[G,.75],[G,.25],[A,1],[G,1],[D,1],[C,2],[G,.75],[G,.25],[G5,1],[E,1],[C,1],[B,1],[A,2],[F,.75],[F,.25],[E,1],[C,1],[D,1],[C,3]];
       const beat = .42; let t = ctx.currentTime + .3;
-      arp = false; music.gain.setTargetAtTime(1, ctx.currentTime, .2);
+      // the song steps back while the music box plays Happy Birthday
+      const hadArp = arp; arp = false; music.gain.setTargetAtTime(1, ctx.currentTime, .2);
+      if (songOn) setSong(S.level * .2, .4);
       song.forEach(([m, d], i) => { bell(mtof(m + 12), t, .11, Math.max(1.2, d * beat * 2)); if (i % 3 === 0) bell(mtof(m), t, .04, 1.6); t += d * beat; });
       const end = t - ctx.currentTime;
-      setTimeout(() => { arp = true; nextT = ctx.currentTime + .4; step = 0; }, end * 1000 + 600);
+      setTimeout(() => {
+        if (songOn) setSong(songLevel(), 1.5);
+        if (hadArp) { arp = true; nextT = ctx.currentTime + .4; step = 0; }
+      }, end * 1000 + 600);
     }
   };
 })();
@@ -761,6 +809,7 @@ scenes.sky = (() => {
   }
   function complete() {
     done = true;
+    Sound.cue();
     lines.push({ a: N - 1, b: 0, k: 0 });
     Sound.sparkle();
     pts.forEach((p, i) => setTimeout(() => burst(p.x, p.y, 10, { max: 120, life: 1.1 }), i * 35));
@@ -780,6 +829,7 @@ scenes.sky = (() => {
     layout,
     enter() {
       lit = 0; lines = []; done = false; glowK = 0; bgTarget = .12;
+      Sound.rewind();
       nameEl.classList.remove('show'); later(next, false);
       whisper.innerHTML = 'المسي النجمة المتوهّجة، ثم اتبعي الضوء.';
     },
@@ -1182,17 +1232,11 @@ scenes.finale = (() => {
   let timer = 0;
   $('#replyBtn').href = `https://wa.me/${CFG.phone}?text=` + encodeURIComponent(CFG.reply);
   $('#snapBtn').href = `https://www.snapchat.com/add/${CFG.snap}`;
-  const frame = $('#songFrame');
-  $('#songLink').href = `https://www.youtube.com/watch?v=${CFG.song}`;
   $('#replayBtn').addEventListener('click', () => go('sky'));
   return {
     enter() {
       bgTarget = 1.2; timer = .3; Sound.sparkle(); confetti(80);
-      // the song takes over from the music box
-      Sound.duck(0);
-      if (!frame.src) frame.src = `https://www.youtube.com/embed/${CFG.song}?playsinline=1&rel=0`;
     },
-    leave() { frame.removeAttribute('src'); Sound.duck(1); },
     down(p) { launch(p.x, p.y); },
     draw(t, dt) {
       timer -= dt;
