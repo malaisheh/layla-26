@@ -401,10 +401,8 @@ const CFG = {
   // رقم واتساب بالصيغة الدولية (الأردن 962) — زر الرد في الشاشة الأخيرة يفتح محادثة معه مباشرة
   phone: '962785377037',
   snap: 'mbsd999',
-  // الأغنية في الخلفية: song.m4a بجانب الصفحة.
-  // المقدمة الموسيقية تتكرر بين introLoop و introEnd حتى يكتمل القلب،
-  // ثم تقفز إلى cue فيبدأ الغناء (الثانية 39) لحظة ظهور اسمها.
-  song: { src: 'song.m4a', introEnd: 35.6, introLoop: 6, cue: 37.4, vocal: 39, level: .8 },
+  // الأغنية في الخلفية: song.m4a بجانب الصفحة، مقصوصة لتبدأ من الثانية 35 من الأصل
+  song: { src: 'song.m4a', level: .8 },
   // رسالة الرد التي تُفتح في واتساب من الشاشة الأخيرة
   reply: 'محمد، وصلتني هديتك…أضأتُ النجوم وأطفأتُ الشموع وقرأت الرسالة 🤍',
   whispers: {
@@ -499,22 +497,14 @@ const Sound = (() => {
   let ctx = null, master, bus, music, noiseBuf, muted = false, arp = false, nextT = 0, step = 0;
   // background song
   const S = CFG.song, songEl = document.getElementById('song');
-  let songG = null, songOn = false, songMode = 'intro', duckV = 1, seeking = false;
+  let songG = null, songOn = false, duckV = 1;
   songEl.src = S.src;
-  songEl.addEventListener('ended', () => { songEl.currentTime = S.cue; songEl.play().catch(() => {}); });
+  songEl.loop = true;
   songEl.addEventListener('error', () => { if (!songOn) fallback(); });
   const songLevel = () => S.level * duckV;
   function setSong(v, tc = .5) {
     if (songG) songG.gain.setTargetAtTime(v, ctx.currentTime, tc);
     else songEl.volume = Math.max(0, Math.min(1, v));
-  }
-  function jump(to) {
-    if (seeking) return; seeking = true;
-    setSong(0, .12);
-    setTimeout(() => { songEl.currentTime = to; setSong(songLevel(), .35); seeking = false; }, 450);
-  }
-  function watch() {
-    if (songOn && !seeking && songMode === 'intro' && songEl.currentTime >= S.introEnd) jump(S.introLoop);
   }
   // music box only if the song cannot play
   function fallback() { if (ctx && !arp) { arp = true; nextT = ctx.currentTime + .15; } }
@@ -544,7 +534,6 @@ const Sound = (() => {
       ctx.createMediaElementSource(songEl).connect(songG); songG.connect(master);
     } catch (_) { songG = null; songEl.volume = 0; }
     setInterval(tick, 90);
-    setInterval(watch, 100);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) { ctx.suspend(); songEl.pause(); }
       else { ctx.resume(); if (songOn) songEl.play().catch(() => {}); }
@@ -594,10 +583,7 @@ const Sound = (() => {
       if (!songG) songEl.muted = muted;
       return muted;
     },
-    duck(v) { duckV = v; if (ok()) music.gain.setTargetAtTime(v, ctx.currentTime, .5); if (songOn && !seeking) setSong(songLevel(), .5); },
-    // her name appears: skip the intro so the singing starts with it
-    cue() { songMode = 'song'; if (songOn && songEl.currentTime < S.vocal - 1.2) jump(S.cue); },
-    rewind() { songMode = 'intro'; if (songOn && songEl.currentTime > S.introEnd) jump(S.introLoop); },
+    duck(v) { duckV = v; if (ok()) music.gain.setTargetAtTime(v, ctx.currentTime, .5); if (songOn) setSong(songLevel(), .5); },
     chime(i) {
       if (!ok()) return; const pent = [0, 2, 4, 7, 9];
       const m = 72 + pent[i % 5] + 12 * (Math.floor(i / 5) % 2), t = ctx.currentTime;
@@ -809,7 +795,6 @@ scenes.sky = (() => {
   }
   function complete() {
     done = true;
-    Sound.cue();
     lines.push({ a: N - 1, b: 0, k: 0 });
     Sound.sparkle();
     pts.forEach((p, i) => setTimeout(() => burst(p.x, p.y, 10, { max: 120, life: 1.1 }), i * 35));
@@ -829,7 +814,6 @@ scenes.sky = (() => {
     layout,
     enter() {
       lit = 0; lines = []; done = false; glowK = 0; bgTarget = .12;
-      Sound.rewind();
       nameEl.classList.remove('show'); later(next, false);
       whisper.innerHTML = 'المسي النجمة المتوهّجة، ثم اتبعي الضوء.';
     },
